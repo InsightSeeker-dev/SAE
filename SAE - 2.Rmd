@@ -1,0 +1,145 @@
+---
+title: "SAE - LAVAL"
+author: "Dynastie & Dilane"
+date: "2023-01-16"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Opérations sur les données temporelles
+# Importation des données
+```{r}
+library(tidyverse)
+library(readxl)
+DATA  <- read_excel("C:/Users/amous/OneDrive/Bureau/SAE - R - LAVAL.xlsx")
+```
+
+# Vérification des données
+
+```{r}
+glimpse(DATA)
+```
+
+## Modification de la données
+
+```{r}
+library(lubridate)
+DATA$Période <- ym(DATA$Période)
+DATA <- DATA %>%
+  filter(Période < as.Date("2022-01-01"))
+```
+
+
+## Explorons graphiquement les données
+
+```{r}
+DATA %>%
+  ggplot(aes(x = Période, y = `Indices`)) +
+  geom_line()
+```
+
+## Indice de 2017 à 2022
+
+```{r}
+DATA %>%
+  filter(Période >= as.Date("2017-01-01")) %>%
+  ggplot(aes(x = Période, y = `Indices`)) +
+  geom_line()
+```
+
+## Auto-corrélation
+```{r}
+coeff <- acf(DATA$Indices, type="correlation", plot="FALSE")
+coeff
+```
+# Graphique d'autocorrelation
+```{r}
+plot(coeff)
+```
+
+## Visualisation des composantes
+
+```{r}
+# Charger les packages
+library(readxl)
+library(forecast)
+
+# Convertir les données en série chronologique
+ts_data <- ts(DATA$Indices, start = c(1997,1), frequency = 12)
+
+# Effectuer une ACS sur la série chronologique
+stl_decomp <- stl(ts_data, s.window = "periodic")
+
+# Afficher les composantes saisonnières, tendance et résiduelle
+plot(stl_decomp)
+```
+
+## Graphique des Courbes superposées
+```{r}
+ggseasonplot(ts_data,  season.labels="month") +
+  ylab("Effectif") +
+  ggtitle("Seasonal plot: Indices de chiffre d'affaire") 
+```
+
+## Moyenne Mobile
+
+```{r}
+library(forecast)
+ts_data1 <- ts(DATA$`Moy. Mobile`, start = c(1997,1), frequency = 12)
+autoplot(ts_data1)+
+	 ylab("Incices")
+```
+
+## CVS
+
+```{r}
+library(forecast)
+ts_data1 <- ts(DATA$CVS, start = c(1997,1), frequency = 12)
+autoplot(ts_data1)+
+	 ylab("Incices")
+```
+
+## Lissage exponentielle simple
+
+```{r}
+fc <- ses(ts_data, h=5)
+round(accuracy(fc),2)
+autoplot(fc) +
+  autolayer(fitted(fc), series="Lissé") +
+  ylab("Indices") + xlab("Year")
+
+library(forecast)
+ts_data1 <- ts(DATA$`1er Lissage`, start = c(1997,1), frequency = 12)
+autoplot(ts_data1)+
+  autolayer(ts_data1, series="Lissé")+
+	 ylab("Incices")
+```
+
+## Lissage exponentielle double
+
+```{r}
+library(forecast)
+ts_data1 <- ts(DATA$`2ème Lissage`, start = c(1997,1), frequency = 12)
+autoplot(ts_data1)+
+	 ylab("Incices")
+```
+
+
+## Prévisions
+```{r}
+autoplot(ts_data) +
+  autolayer(meanf(ts_data, h=12), series="Moyenne", PI=FALSE) +
+  autolayer(naive(ts_data, h=12), series="Naïve", PI=FALSE) +
+  autolayer(snaive(ts_data , h=12), series="Naïve saisonnière", PI=FALSE) +
+  autolayer(rwf(ts_data,12, drift=TRUE), series="Naïve dérive", PI=FALSE)+
+  ggtitle("Prevision des indices de chiffre d'affaire mensuels pour l'année 2022") +
+  xlab("Year") + 
+  ylab("Indices") +
+  guides(colour=guide_legend(title="Prevision"))
+```
+

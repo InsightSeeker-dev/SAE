@@ -1,0 +1,339 @@
+---
+title: "SAE"
+author: "Dynastie"
+date: "2023-01-12"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Importation de la donnée 
+
+```{r}
+library(readr)
+data <- read_delim("C:/Users/amous/Downloads/sae_donnees.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+```
+
+## Modification de la data frame
+
+```{r}
+data$satisfaction_result_sco = factor(data$satisfaction_result_sco, labels = c("Non","Partiellement","Totalement"))
+```
+
+## Calcul des fréquences des etudiants en fonction de leur niveau de satisfaction
+
+```{r}
+library(knitr)
+EffSatisfaction = as.vector(table(data$satisfaction_result_sco))
+Freq = EffSatisfaction/length(data$satisfaction_result_sco)
+knitr::kable(data.frame(modalite = levels(data$satisfaction_result_sco), Eff = EffSatisfaction, Freq = Freq), 
+             caption = "Description de la variable Satisfaction", booktabs = TRUE, digits = 3)
+```
+
+## Effectis, Frequences, Répartition 
+```{r}
+barplot(table(data$satisfaction_result_sco),col="orange",density=c(NA,20,60), xlab="Satisfaction Scolaire",ylab="Effectifs", main='Effectifs des étudiants selon la satisfaction',beside=T)
+barplot(table(data$satisfaction_result_sco)/nrow(data),col="red",density=c(NA,20,60), xlab="Satisfaction Scolaire",ylab="Frequence", main='Fréquence des étudiants selon la satisfaction',beside=T)
+pie(table(data$moy_gen),col='slateblue1',density=c(NA,50,30,20),main='Distribution en	 fonction	 de	 la moyenne	 des 	étudiants')
+
+```
+
+## Extraction de données
+
+La dataframe activité_oui contient les données sur les etudiants qui font des activitées extrascolaires et la dataframe activité_oui ceux qui en font pas 
+```{r}
+activité_oui = data |> subset(activite_extra_oui_non == "Oui")
+activité_non = data |> subset(activite_extra_oui_non == "Non")
+```
+
+
+## Satisfaction en fonction des etudiants qui pratiquent ou pas
+```{r}
+# Ceux qui pratiquent
+barplot(table(activité_oui$satisfaction_result_sco)/nrow(data),col="Pink",density=c(NA,20,60), xlab="Satisfaction Scolaire",ylab="Proportion", main='Proportion des étudiants qui pratiquent des activitées selon la satisfaction',beside=T)
+# Ceux qui pratiquent pas
+barplot(table(activité_non$satisfaction_result_sco)/nrow(data),col="Blue",density=c(NA,20,60), xlab="Satisfaction Scolaire",ylab="Proportion", main='Proportion des étudiants qui pratiquent pas dactivitées selon la satisfaction',beside=T)
+```
+
+```{r}
+library(ggplot2)
+ggplot(data) +
+  aes(x = satisfaction_result_sco, fill = activite_extra_oui_non) +
+  geom_bar() +
+  xlab("Satisfaction Scolaire") +
+  ylab("Proportions") +
+  labs(fill = "Pratique d'activité")
+```
+```{r}
+library(GGally)
+data$satisfaction_result_sco <- forcats::fct_explicit_na(factor(data$satisfaction_result_sco))
+ggplot(data) +
+  aes(x = satisfaction_result_sco, fill = activite_extra_oui_non, by = activite_extra_oui_non) +
+  geom_bar(position = "dodge") +
+  theme_light()+
+  xlab("Satisfaction Scolaire") +
+  ylab("Proportions") +
+  labs(fill = "Pratique d'activité") + 
+  ggtitle("Satisfaction scolaire en fonction de la Pratique d'activité") +
+  theme(
+    panel.grid = element_blank(),
+    panel.border = element_blank()) + 
+  scale_fill_brewer()
+```
+
+## Tableau des proportions des étudiants qui fonts des activitées en fonction du genre
+
+L'objectif ici etant de savoir si il y a un genre qui predomine en terme d'activité. Es ce que parmi les etudiants qui font des activitées, l'ont à plus de femme que d'homme et vice versa
+```{r}
+Tab_genre = table(activité_oui$Genre)
+Tab_genre = prop.table(Tab_genre)
+Tab_genre
+```
+
+## Représentation graphique
+```{r}
+barplot(Tab_genre,
+        col="green",density=c(20,60),xlab="Genre",ylab="Proportion", main='Proprtion des étudiants qui pratiquent en fonction du genre',beside=T)
+```
+
+Dans notre echantillon nous observons une proportion d'homme plus elevée que celui des femmes. Essayons d'estimiser ses valeurs à l'echelle de l'IUT
+
+## Tableau de contingence entre ceux qui pratiquentou pas une activité  selon le sexe
+
+```{r}
+Table_Contingence = table(data$Genre,data$activite_extra_oui_non)
+Table_Contingence
+```
+
+## Test de fisher
+
+```{r}
+# Créer un tableau de contingence
+Tab_genre <- xtabs(~ Genre + activite_extra_oui_non, data=data)
+# Effectuer le test de Fisher
+fisher.test(Tab_genre)
+
+```
+En résumé :  Il est important de souligner que les résultats montrent une association significative entre les deux variables qualitatives (selon une p-value inférieure à 0.05). Le rapport de cotes étant estimé à 2.896308  (avec un intervalle de confiance entre 0.9864801 et 9.4193290), cela signifie que les chances d'observer un individu pratiquant une activité dans l'un des genres sont 2.896308 fois plus élevées que dans l'autre genre. Il est important de noter que ces résultats ne permettent pas de déduire une causalité entre les variables mais seulement une association.
+
+Il serait intéressant de continuer l'analyse en utilisant d'autres tests statistiques pour vérifier les différences de proportions de pratique sportive entre les deux genres, par exemple en utilisant un test de proportion pour chacun des genres.
+
+## Effectuons le test du chi-deux
+
+```{r}
+result <- chisq.test(Table_Contingence)
+result
+
+```
+Il est important de souligner que les résultats montrent une association significative entre les deux variables qualitatives (selon une p-value inférieure à 0.05). Il est également important de noter que le X-squared est de 3.6434, ce qui signifie qu'il y a une différence importante entre les fréquences observées et les fréquences attendues sous H0. 
+
+
+
+## Intervalle de confiance d'une proportion (on prend que ceux qui effectue une activité)
+
+## Cas des hommes
+
+On calcule la proportion estimée en utilisant la formule : p_hat = x / n, où x est le nombre de réussites dans l'échantillon et n est la taille de l'échantillon
+On calcule le niveau de confiance souhaité (généralement 95%), où alpha est le niveau de signification (généralement 0.05)
+
+Soit pf la proportion des femmes et ph celle des hommes
+
+Hypothèse du test
+
+L’hypothèse H0 est l’hypothèse d’éegalité des proportions: pf = ph
+L’hypothèse H1 est que les proportions sont différente pf <> ph
+
+```{r}
+x_h = 25
+n = 32
+alpha = 0.05
+p_hat <- x_h / n
+se <- sqrt((p_hat * (1 - p_hat)) / n)
+z <- qnorm(1 - (alpha/2))
+lower_bound <- p_hat - z * se
+upper_bound <- p_hat + z * se
+lower_bound
+upper_bound
+```
+
+On est certain à 95% que la proportion des hommes se situe entre [0.6380173; 0.9244827]
+
+## Cas des femmes
+```{r}
+x_f = 7
+n = 32
+alpha = 0.05
+p_hat <- x_f / n
+se <- sqrt((p_hat * (1 - p_hat)) / n)
+z <- qnorm(1 - (alpha/2))
+lower_bound <- p_hat - z * se
+upper_bound <- p_hat + z * se
+lower_bound
+upper_bound
+```
+
+On est certain à 95% que la proportion des hommes se situe entre [0.07551731; 0.3619827]
+
+
+## On essaye de voir s'il y a une quelconque relation entre le resenti et la pratique d'activitées 
+
+## De manière générale - calcul des proportions
+```{r}
+# Ceux qui pratiquent pas une activité
+Tab_non_1 = table(activité_non$avenir_pro)
+Tab_non_1 = prop.table(Tab_non_1)
+
+# Ceux qui pratiquent une activité
+Tab_oui_1 = table(activité_oui$avenir_pro)
+Tab_oui_1 = prop.table(Tab_oui_1)
+```
+
+## Regardons graphiquement ce qu'on obtient
+
+```{r}
+#ceux qui pratiquent
+
+barplot(Tab_oui_1,
+        col="slateblue1",density=c(NA,20,60),xlab="Ressenti",ylab="Proportion", main='Ressenti des étudiants qui pratiquent',beside=T)
+
+#ceux qui pratiquent pas
+barplot(Tab_non_1,
+        col="magenta",density=c(NA,20,60),xlab="Ressenti",ylab="Proportion", main='Ressenti de ceux qui pratiquent pas',beside=T)
+
+```
+
+Ces graphioques peuvent laisser présager que les étudiants qui font des activitées semblent plus confiants que les autres tout sexe confondus 
+
+## Faisons un petit test pour voir ce qu'on obtiens
+
+## **Test de χ² d'indépendance**
+```{r}
+# Ceux qui font des activitées
+chisq.test(Tab_oui_1, correct = TRUE)
+
+# Ceux qui font des activitées
+chisq.test(Tab_non_1, correct = TRUE)
+```
+
+Dans ce cas précis, les p-value obtenue sont de 0,9562 et 0.9288, ce qui est très proche de 1. On peut conclure que les fréquences observées dans le tableau de contingence Tab_oui_1 suivent la même distribution que les probabilités théoriques données.
+
+
+## En stratifiant par rapport au sexe on obtient ceci : 
+```{r}
+#Proportion ceux qui pratiquent pas en fonction du genre
+Tab_non = table(activité_non$Genre,activité_non$avenir_pro)
+Tab_non = prop.table(Tab_non,2)
+
+#Proportion ceux qui pratiquent en fonction du genre
+Tab_oui = table(activité_oui$Genre,activité_oui$avenir_pro)
+Tab_oui = prop.table(Tab_oui,2)
+```
+```{r}
+barplot(Tab_oui,
+        col="Purple",density=c(NA,20),xlab="Ressenti",ylab="Proportion", main='Ressenti des étudiants qui pratiquent en fonction du genre',beside=T)
+legend("top",c("Femme","Homme"),bty='n',fill="Purple",density=c(NA,20),cex=1.2)
+
+# 
+barplot(Tab_non,
+        col="cyan",density=c(NA,20),xlab="Ressenti",ylab="Proportion", main='Ressenti de ceux qui pratiquent pas en fonction du genre',beside=T)
+legend("topleft",c("Femme","Homme"),bty='n',fill="cyan",density=c(NA,20),cex=1.2)
+```
+
+Certains etudiant ayant repondu ne pas faire d'activité on renségné qu'ils s'évadent du cours cela peut-être expliqué par le fait qu'il font autre chose qui permet cela et qui n'est pas pris en compte par notre questionnaire. On peut aussi prendre en compte le fait que notre questionnaire n'a pas été assez précis et clair pour certain qui ont répondu q'ils font pas d'activitéés
+
+## Effectuons des tests pour en savoir plus...
+```{r}
+# Ceux qui font des activitées
+chisq.test(Tab_oui, correct = TRUE)
+
+# Ceux qui font des activitées
+chisq.test(Tab_non, correct = TRUE)
+```
+Les résultats de ces deux tests du chi-deux montrent que la p-value obtenue pour chacun d'eux est supérieure à un seuil de significativité généralement utilisé (0.05) . Il est donc impossible de rejeter l'hypothèse nulle selon laquelle les fréquences observées dans les tableaux de contingence Tab_oui et Tab_non suivent la même distribution que les fréquences attendues.
+
+Il est également important de remarquer l'avis qui accompagne ces résultats, qui indique que l'approximation du chi-deux peut être incorrecte. Cela signifie que les conditions nécessaires pour l'utilisation de ce test (indépendance et égalité des variances entre les catégories) peuvent ne pas être remplies pour ces données. Il est donc possible que les résultats obtenus ne soient pas fiables.
+
+Il est important de noter que ces résultats ne permettent pas de tirer des conclusions sur une possible relation entre les variables qui ont été considérées dans les tableaux de contingence, mais uniquement sur la concordance entre les fréquences observées et les fréquences attendues. Il est donc important de considérer d'autres indicateurs pour évaluer la relation entre ces variables ou d'utiliser des méthodes différentes pour vérifier l'indépendance et l'égalité des variances entre les catégories.
+
+## Focaliser nous maintenant sur ceux qui pratiquent des activitées et regardons de plus près le temps d'activité
+```{r}
+# Tableau de contingence
+Tab1 = table(activité_oui$evader_cours,activité_oui$temps_activite_extra)
+Tab1
+```
+
+Le tableau peut nous laisser croire que les etudiants qui pratiquent  entre 1h et 3h par semaine d'activités s'evadent plus que les autres mais qu'en est-il réelement ? 
+
+## Graphique
+```{r}
+mosaicplot(Tab1, color = TRUE, main = "Evader_cours en fonction du temps d'activitées", las=1)
+```
+
+##Profilage ligne et colonne
+```{r}
+# Profil ligne
+round(prop.table(Tab1,1)*100,1)
+
+# Profil colonne
+round(prop.table(Tab1,2)*100,1)
+```
+
+##☻ Creation d'un tableau de contingence pour une meilleure comprehension
+```{r}
+# déclaration des variables
+Var.1<-activité_oui$evader_cours
+Var.2<-activité_oui$temps_activite_extra
+
+Y1 = 'Moins de 1h'
+Y2 = 'Entre 1 à 3h'
+Y3 = 'Entre 3 à 5h'
+Y4 = '5 heures ou plus'
+Z = '%'
+X1 = 'Non'
+X2 = 'Oui, un peu'
+X3 = 'Oui, totalement'
+
+# utilisation de fonctions descriptives.
+a = table(Var.1,Var.2)
+b = round(prop.table(a,1)*100,digit=1)
+Total = margin.table(a,2)
+
+# construction du tableau
+Conting = rbind(a[1,],b[1,],a[2,],b[2,],a[3,],b[3,])
+dimnames(Conting)<-list(c(X1,Z,X3,Z,X2,Z),c(Y4,Y2,Y3,Y1))
+Total=margin.table(Conting,1)
+Conting=cbind(Conting,Total)
+index_c = c(4,2,3,1,5)
+Conting = Conting[,index_c]
+index_l = c(1,2,5,6,3,4)
+Conting = Conting[index_l,]
+Conting
+
+```
+## Voyons s'il y a une relation significative entre le temps d'activitées et le fait que les étudiants s'évadent du cours 
+## **Test de χ² d'indépendance**
+```{r}
+chisq.test(Tab1, correct = TRUE)
+```
+• X-squared	représente	la	valeur	du	calcul	du	test	de	χ².
+• df	 représente	 le	 nombre	 de	 degré	 de	 liberté,	 qui	 est	 la	
+produit	 du	 (nombre	 de	 lignes	 – 1) et	 du	 (nombre	 de	
+colonnes	-1) -> ddl=(Nbligne-1)*(Nbcolonne-1)
+• p-value	représente	la	valeur	de	la	probabilité	en	relation	
+avec	le	test
+
+Ici on conclut qu'il	 n'a	 pas	 été	montré	 de	 liaison	 statistiquement	 significative	 entre	 les heures d'activitées extra et le fait qu'ils s'evadent aux cours .
+
+## Regardons ce que nous dit le test de fisher
+## **Test exact de Fisher**
+```{r}
+# H0 (hypothèse nulle) :  Les données suivent une distribution équilibrée, c'est-à-dire que les fréquences observées dans chaque catégorie de la variable d'intérêt sont les mêmes que les fréquences attendues.
+# Ha (hypothèse alternative) : Les données suivent pas une distribution équilibrée
+fisher.test(Tab1)
+```
+Ici la p-value est supérieure à 0.05, on ne rejette pas l'hypothèse nulle et on ne peut pas affirmer que la variable étudiée ne suit pas une distribution équilibrée.Il y a donc assez de preuve pour dire que la variable étudiée suit une distribution équilibrée. 
+L'hypothèse alternative utilisée est "two.sided" qui signifie qu'on teste si la distribution observée est différente de l'équilibre attendu
